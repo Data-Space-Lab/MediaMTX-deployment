@@ -19,7 +19,7 @@ spec:
         app.kubernetes.io/name: mediamtx
         app.kubernetes.io/part-of: dil-connector
       annotations:
-        mediamtx.dil.collab-cloud.eu/config-revision: "7"
+        mediamtx.dil.collab-cloud.eu/config-revision: "8"
     spec:
       containers:
         - name: mediamtx
