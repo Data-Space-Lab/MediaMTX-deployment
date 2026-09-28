@@ -53,12 +53,12 @@ spec:
             timeoutSeconds: 3
           resources:
             requests:
-              cpu: 50m
-              memory: 64Mi
+              cpu: 100m
+              memory: 256Mi
               ephemeral-storage: 64Mi
             limits:
-              cpu: 100m
-              memory: 128Mi
+              cpu: 500m
+              memory: 512Mi
               ephemeral-storage: 256Mi
           securityContext:
             allowPrivilegeEscalation: false

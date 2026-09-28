@@ -11,6 +11,10 @@ Apply `argocd-application.yaml` to the material vcluster's `argocd` namespace.
 The application deploys MediaMTX into the existing `dil-connector` namespace.
 
 The application uses the pinned upstream image `bluenviron/mediamtx:v1.21.1`.
+MediaMTX is configured with a 256 MiB memory request and a 512 MiB memory
+limit because each active RTSP relay and HLS reader consumes memory. If the
+pod is restarted, its dynamically-created transfer paths are lost and active
+transfers must be started again.
 
 ## DIL dataplane configuration
 
