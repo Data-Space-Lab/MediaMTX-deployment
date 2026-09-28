@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dil-connector-mediamtx
+  namespace: dil-connector
+  labels:
+    app.kubernetes.io/name: mediamtx
+    app.kubernetes.io/part-of: dil-connector
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mediamtx
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mediamtx
+        app.kubernetes.io/part-of: dil-connector
+    spec:
+      containers:
+        - name: mediamtx
+          image: bluenviron/mediamtx:1.21.1
+          imagePullPolicy: IfNotPresent
+          args:
+            - /mediamtx.yml
+          ports:
+            - name: api
+              containerPort: 9997
+              protocol: TCP
+            - name: rtsp
+              containerPort: 8554
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /v3/config/global/get
+              port: api
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /v3/config/global/get
+              port: api
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: config
+              mountPath: /mediamtx.yml
+              subPath: mediamtx.yml
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: dil-connector-mediamtx-config

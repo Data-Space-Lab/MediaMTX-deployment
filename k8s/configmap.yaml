@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dil-connector-mediamtx-config
+  namespace: dil-connector
+  labels:
+    app.kubernetes.io/name: mediamtx
+    app.kubernetes.io/part-of: dil-connector
+data:
+  mediamtx.yml: |
+    logLevel: info
+    api: yes
+    apiAddress: 0.0.0.0:9997
+    rtsp: yes
+    rtspAddress: 0.0.0.0:8554
+    rtspTransports: [tcp]
+    paths: {}
