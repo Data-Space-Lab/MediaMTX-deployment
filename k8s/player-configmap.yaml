@@ -42,6 +42,9 @@ data:
           proxy_pass http://127.0.0.1:8888;
           proxy_http_version 1.1;
           proxy_buffering off;
+          proxy_read_timeout 120s;
+          proxy_send_timeout 120s;
+          proxy_cache off;
           add_header Cache-Control no-cache always;
           add_header Access-Control-Allow-Origin * always;
         }
@@ -81,27 +84,59 @@ data:
         const video = document.getElementById('video');
         const status = document.getElementById('status');
         let hls;
+        let activePath = '';
+        let recoveryTimer;
+        let lastPlayingAt = 0;
 
-        function play(path) {
+        function clearRecovery() {
+          if (recoveryTimer) {
+            clearTimeout(recoveryTimer);
+            recoveryTimer = undefined;
+          }
+        }
+
+        function recoverPlayback(reason) {
+          if (!activePath || recoveryTimer || document.hidden) return;
+          recoveryTimer = setTimeout(() => {
+            recoveryTimer = undefined;
+            status.textContent = `Reconnecting after ${reason}...`;
+            play(activePath, true);
+          }, 2500);
+        }
+
+        function play(path, recovering = false) {
           path = String(path || '').trim().replace(/^\/+|\/+$/g, '');
           if (!path) {
             status.textContent = 'A stream path is required.';
             return;
           }
+          activePath = path;
+          clearRecovery();
           pathInput.value = path;
           // Ask MediaMTX to validate the HLS session without its redirect.
           // This keeps all follow-up requests under the public /hls/ prefix.
           const source = `${location.origin}/hls/${encodeURIComponent(path)}/index.m3u8?cookieCheck=1`;
           if (hls) { hls.destroy(); hls = undefined; }
           video.removeAttribute('src');
-          status.textContent = `Loading ${path}...`;
+          status.textContent = recovering ? `Reconnecting ${path}...` : `Loading ${path}...`;
 
           if (video.canPlayType('application/vnd.apple.mpegurl')) {
             video.src = source;
             video.play().catch(() => {});
-            status.textContent = 'Stream loaded.';
+            status.textContent = recovering ? 'Stream reconnected.' : 'Stream loaded.';
           } else if (window.Hls && Hls.isSupported()) {
-            hls = new Hls({ lowLatencyMode: true });
+            hls = new Hls({
+              lowLatencyMode: true,
+              liveSyncDurationCount: 3,
+              liveMaxLatencyDurationCount: 8,
+              maxLiveSyncPlaybackRate: 1.2,
+              backBufferLength: 30,
+              maxBufferLength: 30,
+              maxBufferSize: 60 * 1000 * 1000,
+              manifestLoadingMaxRetry: 6,
+              levelLoadingMaxRetry: 6,
+              fragLoadingMaxRetry: 6,
+            });
             hls.loadSource(source);
             hls.attachMedia(video);
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -109,12 +144,38 @@ data:
               video.play().catch(() => {});
             });
             hls.on(Hls.Events.ERROR, (_, data) => {
-              if (data.fatal) status.textContent = `Playback error: ${data.details || 'stream unavailable'}`;
+              if (!data.fatal) return;
+              if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+                status.textContent = 'Network interruption; retrying...';
+                hls.startLoad();
+              } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                status.textContent = 'Media decoder recovery...';
+                hls.recoverMediaError();
+              } else {
+                status.textContent = `Playback error: ${data.details || 'stream unavailable'}`;
+                recoverPlayback('playback error');
+              }
             });
           } else {
             status.textContent = 'This browser does not support HLS playback.';
           }
         }
+
+        video.addEventListener('playing', () => {
+          lastPlayingAt = Date.now();
+          clearRecovery();
+          status.textContent = 'Stream playing.';
+        });
+        video.addEventListener('timeupdate', () => {
+          lastPlayingAt = Date.now();
+        });
+        video.addEventListener('stalled', () => {
+          if (Date.now() - lastPlayingAt > 3000) recoverPlayback('buffer stall');
+        });
+        video.addEventListener('waiting', () => {
+          if (Date.now() - lastPlayingAt > 3000) recoverPlayback('buffer underrun');
+        });
+        video.addEventListener('error', () => recoverPlayback('video error'));
 
         form.addEventListener('submit', event => {
           event.preventDefault();
