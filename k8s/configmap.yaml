@@ -27,4 +27,9 @@ data:
     hls: yes
     hlsAddress: 0.0.0.0:8888
     hlsVariant: lowLatency
+    hlsAlwaysRemux: yes
+    hlsSegmentCount: 7
+    hlsSegmentDuration: 1s
+    hlsPartDuration: 200ms
+    hlsMuxerCloseAfter: 5m
     paths: {}
