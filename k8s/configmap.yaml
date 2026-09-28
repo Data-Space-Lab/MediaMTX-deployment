@@ -9,6 +9,15 @@ metadata:
 data:
   mediamtx.yml: |
     logLevel: info
+    # The API is reachable only through the private ClusterIP service. The
+    # DIL dataplane calls it without forwarding consumer credentials.
+    authMethod: internal
+    authInternalUsers:
+      - user: any
+        pass:
+        ips: []
+        permissions:
+          - action: api
     api: yes
     apiAddress: 0.0.0.0:9997
     rtsp: yes
