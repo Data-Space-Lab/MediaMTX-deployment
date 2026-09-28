@@ -26,7 +26,9 @@ data:
     rtspTransports: [tcp]
     hls: yes
     hlsAddress: 0.0.0.0:8888
-    hlsVariant: lowLatency
+    # MPEG-TS avoids the fMP4 timestamp path that rejects this source's
+    # slightly non-monotonic H.265 DTS values.
+    hlsVariant: mpegts
     hlsAlwaysRemux: yes
     hlsSegmentCount: 7
     hlsSegmentDuration: 1s
