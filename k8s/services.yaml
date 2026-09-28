@@ -25,11 +25,14 @@ metadata:
     app.kubernetes.io/name: mediamtx
     app.kubernetes.io/part-of: dil-connector
 spec:
-  type: ClusterIP
+  # RTSP is a raw TCP protocol and cannot be served through the shared
+  # HTTP/HTTPS Gateway. Expose the relay through a stable NodePort instead.
+  type: NodePort
   selector:
     app.kubernetes.io/name: mediamtx
   ports:
     - name: rtsp
       port: 8554
+      nodePort: 30554
       targetPort: rtsp
       protocol: TCP

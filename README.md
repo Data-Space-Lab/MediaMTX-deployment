@@ -38,9 +38,11 @@ The dataplane appends an opaque per-transfer path to this base URL.
 | Service | Port | Purpose |
 | --- | ---: | --- |
 | `dil-connector-mediamtx` | `9997` | Private MediaMTX control API |
-| `dil-connector-mediamtx-rtsp` | `8554` | RTSP relay traffic |
+| `dil-connector-mediamtx-rtsp` | `8554` / NodePort `30554` | RTSP relay traffic |
 
-The deployment does not expose the MediaMTX control API externally.
+The deployment does not expose the MediaMTX control API externally. The RTSP
+service is exposed as a dedicated TCP NodePort because the shared Envoy Gateway
+currently has HTTP/HTTPS listeners only; an `HTTPRoute` cannot carry RTSP.
 
 ## Health checks
 
