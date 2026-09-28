@@ -34,6 +34,9 @@ spec:
             - name: rtsp
               containerPort: 8554
               protocol: TCP
+            - name: hls
+              containerPort: 8888
+              protocol: TCP
           readinessProbe:
             httpGet:
               path: /v3/config/global/get
@@ -66,7 +69,43 @@ spec:
               mountPath: /mediamtx.yml
               subPath: mediamtx.yml
               readOnly: true
+        - name: player
+          image: nginx:1.27-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["nginx", "-g", "daemon off;", "-c", "/etc/nginx/nginx.conf"]
+          ports:
+            - name: player
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+              ephemeral-storage: 16Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+              ephemeral-storage: 64Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 101
+            runAsGroup: 101
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: player-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+            - name: player-config
+              mountPath: /usr/share/nginx/html/index.html
+              subPath: index.html
+              readOnly: true
       volumes:
         - name: config
           configMap:
             name: dil-connector-mediamtx-config
+        - name: player-config
+          configMap:
+            name: dil-connector-mediamtx-player

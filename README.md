@@ -2,8 +2,8 @@
 
 This repository deploys a MediaMTX relay for the DIL connector RTSP dataplane.
 The MediaMTX control API is exposed only inside the `dil-connector` namespace.
-The RTSP service is a separate ClusterIP service so it can be exposed through a
-TCP/TLS-capable gateway when public playback is required.
+The RTSP service is a separate NodePort service for raw RTSP clients. A small
+same-pod HTTP player also exposes MediaMTX HLS playback for browsers.
 
 ## Deploy with ArgoCD
 
@@ -33,12 +33,28 @@ HTTP ingress routes cannot carry RTSP traffic. Expose the RTSP service through
 a TCP-capable Gateway API route, load balancer, or equivalent network service.
 The dataplane appends an opaque per-transfer path to this base URL.
 
+## Browser player
+
+Browsers cannot play an `rtsp://` URL directly. The deployment enables
+MediaMTX HLS and serves a small player at `/player/`. Route the player service
+through an HTTP/HTTPS gateway, then open:
+
+```text
+https://<player-host>/player/?path=<transfer-session-path>
+```
+
+The `path` value is the opaque session path returned by the RTSP dataplane,
+not the full RTSP URL. The player proxies HLS through `/hls/` and does not
+expose the MediaMTX control API. Safari uses native HLS; other supported
+browsers use hls.js.
+
 ## Services
 
 | Service | Port | Purpose |
 | --- | ---: | --- |
 | `dil-connector-mediamtx` | `9997` | Private MediaMTX control API |
 | `dil-connector-mediamtx-rtsp` | `8554` / NodePort `30554` | RTSP relay traffic |
+| `dil-connector-mediamtx` | `8080` | Browser player and HLS proxy |
 
 The deployment does not expose the MediaMTX control API externally. The RTSP
 service is exposed as a dedicated TCP NodePort because the shared Envoy Gateway

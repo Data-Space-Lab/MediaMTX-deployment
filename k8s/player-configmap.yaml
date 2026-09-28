@@ -1,0 +1,120 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dil-connector-mediamtx-player
+  namespace: dil-connector
+  labels:
+    app.kubernetes.io/name: mediamtx
+    app.kubernetes.io/part-of: dil-connector
+data:
+  nginx.conf: |
+    pid /tmp/nginx.pid;
+    events {}
+    http {
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+      access_log /dev/stdout;
+      error_log /dev/stderr warn;
+
+      server {
+        listen 8080;
+        server_name _;
+        root /usr/share/nginx/html;
+
+        location = /player {
+          return 302 /player/;
+        }
+
+        location /player/ {
+          rewrite ^/player/(.*)$ /$1 break;
+          try_files $uri /index.html;
+        }
+
+        # Keep MediaMTX HLS on the same HTTP origin as the player. The
+        # MediaMTX API and RTSP TCP service remain private/separate.
+        location /hls/ {
+          rewrite ^/hls/(.*)$ /$1 break;
+          proxy_pass http://127.0.0.1:8888;
+          proxy_http_version 1.1;
+          proxy_buffering off;
+          add_header Cache-Control no-cache always;
+          add_header Access-Control-Allow-Origin * always;
+        }
+      }
+    }
+  index.html: |
+    <!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>DIL stream player</title>
+      <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+      <style>
+        :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+        body { max-width: 900px; margin: 2rem auto; padding: 0 1rem; background: #111827; color: #f9fafb; }
+        h1 { font-size: 1.25rem; }
+        form { display: flex; gap: .5rem; margin-bottom: 1rem; }
+        input { flex: 1; min-width: 0; padding: .65rem; background: #1f2937; color: inherit; border: 1px solid #4b5563; border-radius: 4px; }
+        button { padding: .65rem 1rem; cursor: pointer; }
+        video { width: 100%; max-height: 70vh; background: #000; }
+        #status { min-height: 1.5rem; color: #d1d5db; }
+        code { color: #93c5fd; }
+      </style>
+    </head>
+    <body>
+      <h1>DIL stream player</h1>
+      <form id="stream-form">
+        <input id="path" name="path" placeholder="MediaMTX stream path" autocomplete="off">
+        <button type="submit">Play</button>
+      </form>
+      <p id="status">Enter a transfer session path or open this page with <code>?path=...</code>.</p>
+      <video id="video" controls autoplay muted playsinline></video>
+      <script>
+        const form = document.getElementById('stream-form');
+        const pathInput = document.getElementById('path');
+        const video = document.getElementById('video');
+        const status = document.getElementById('status');
+        let hls;
+
+        function play(path) {
+          path = String(path || '').trim().replace(/^\/+|\/+$/g, '');
+          if (!path) {
+            status.textContent = 'A stream path is required.';
+            return;
+          }
+          pathInput.value = path;
+          const source = `${location.origin}/hls/${encodeURIComponent(path)}/index.m3u8`;
+          if (hls) { hls.destroy(); hls = undefined; }
+          video.removeAttribute('src');
+          status.textContent = `Loading ${path}...`;
+
+          if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            video.src = source;
+            video.play().catch(() => {});
+            status.textContent = 'Stream loaded.';
+          } else if (window.Hls && Hls.isSupported()) {
+            hls = new Hls({ lowLatencyMode: true });
+            hls.loadSource(source);
+            hls.attachMedia(video);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+              status.textContent = 'Stream loaded.';
+              video.play().catch(() => {});
+            });
+            hls.on(Hls.Events.ERROR, (_, data) => {
+              if (data.fatal) status.textContent = `Playback error: ${data.details || 'stream unavailable'}`;
+            });
+          } else {
+            status.textContent = 'This browser does not support HLS playback.';
+          }
+        }
+
+        form.addEventListener('submit', event => {
+          event.preventDefault();
+          play(pathInput.value);
+        });
+        const initial = new URLSearchParams(location.search).get('path');
+        if (initial) play(initial);
+      </script>
+    </body>
+    </html>

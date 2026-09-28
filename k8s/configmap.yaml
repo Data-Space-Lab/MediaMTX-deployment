@@ -23,4 +23,7 @@ data:
     rtsp: yes
     rtspAddress: 0.0.0.0:8554
     rtspTransports: [tcp]
+    hls: yes
+    hlsAddress: 0.0.0.0:8888
+    hlsVariant: lowLatency
     paths: {}
