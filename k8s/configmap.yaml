@@ -18,6 +18,7 @@ data:
         ips: []
         permissions:
           - action: api
+          - action: read
     api: yes
     apiAddress: 0.0.0.0:9997
     rtsp: yes
