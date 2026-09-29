@@ -29,9 +29,16 @@ data:
     # MPEG-TS avoids the fMP4 timestamp path that rejects this source's
     # slightly non-monotonic H.265 DTS values.
     hlsVariant: mpegts
-    hlsAlwaysRemux: yes
+    # Do not continuously create HLS muxers for the raw provider path. Raw
+    # sources can be H.265 and are normalized by the dataplane into the
+    # dynamically published -h264 path before browser playback.
+    hlsAlwaysRemux: no
     hlsSegmentCount: 7
     hlsSegmentDuration: 1s
     hlsPartDuration: 200ms
     hlsMuxerCloseAfter: 5m
-    paths: {}
+    # The dataplane publishes one short-lived H.264 relay path per transfer.
+    # Allow those publisher-created paths in addition to paths created through
+    # the MediaMTX API.
+    paths:
+      all_others: {}
