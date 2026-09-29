@@ -19,6 +19,9 @@ data:
         permissions:
           - action: api
           - action: read
+          # The dataplane FFmpeg relay publishes the normalized H.264 stream
+          # to a short-lived dynamic path over the private ClusterIP.
+          - action: publish
     api: yes
     apiAddress: 0.0.0.0:9997
     rtsp: yes
